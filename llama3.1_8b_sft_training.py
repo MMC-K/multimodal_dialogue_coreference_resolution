@@ -1,5 +1,8 @@
+import os
 import json
 import random
+import safetensors.torch
+
 from transformers import (
     LlamaForCausalLM,
     LlamaTokenizer,
@@ -113,9 +116,43 @@ eval_dataset = TextDataset(test_texts, processor, max_length=512)
 
 print(train_texts[0])
 
+class SaveFSDPCheckpointCallback(TrainerCallback):
+    def on_save(self, args, state, control, **kwargs):
+
+        ### Version 1. Failed
+        # Trainer에서 현재 학습 중인 모델과 tokenizer 가져오기
+        # model = accelerator.unwrap_model(kwargs['model'])  # FSDP 모델 언랩
+        # tokenizer = processor
+        # config = model.config
+        
+        # # 체크포인트 저장 디렉터리
+        # checkpoint_dir = os.path.join(args.output_dir, f"checkpoint-{state.global_step}")
+        # os.makedirs(checkpoint_dir, exist_ok=True)
+        
+        # # SafeTensor로 모델 가중치 저장
+        # safetensors_path = os.path.join(checkpoint_dir, "model.safetensors")
+        # safetensors.torch.save_file(model.state_dict(), safetensors_path)
+        
+        # # config.json 및 tokenizer.json 저장
+        # config.save_pretrained(checkpoint_dir)
+        # tokenizer.save_pretrained(checkpoint_dir)
+        
+        # print(f"Checkpoint saved to {checkpoint_dir}")
+
+
+        ### Version 2. Success: But not sure about side effects from changing state_dict_type
+        if accelerator.is_main_process:
+            if trainer.is_fsdp_enabled:
+                trainer.accelerator.state.fsdp_plugin.set_state_dict_type("FULL_STATE_DICT")
+        
+                trainer.save_model(f"./llama3.1-{NUM_PARAM}-sft-finetuned/checkpoint-{state.global_step}")
+
+                trainer.accelerator.state.fsdp_plugin.set_state_dict_type("SHARDED_STATE_DICT")
+
+
 # 학습 인자 설정
 training_args = SFTConfig(
-    output_dir=f"./llama3.2-{NUM_PARAM}-sft-finetuned",
+    output_dir=f"./llama3.1-{NUM_PARAM}-sft-finetuned",
     num_train_epochs=EPOCH,
     per_device_train_batch_size=2,
     gradient_accumulation_steps=4,
@@ -205,7 +242,7 @@ trainer = SFTTrainer(
     train_dataset=train_dataset,
     eval_dataset=eval_dataset,
     data_collator=data_collator,
-    callbacks=[aim_callback], # 
+    callbacks=[aim_callback, SaveFSDPCheckpointCallback()], # 
     formatting_func=lambda x: x,
 )
 
@@ -223,7 +260,7 @@ trainer.train(resume_from_checkpoint=checkpoint)
 # saving final model
 if trainer.is_fsdp_enabled:
     trainer.accelerator.state.fsdp_plugin.set_state_dict_type("FULL_STATE_DICT")
-trainer.save_model(f"./llama3.2-{NUM_PARAM}-sft-finetuned")
+trainer.save_model(f"./llama3.1-{NUM_PARAM}-sft-finetuned")
 
 
 

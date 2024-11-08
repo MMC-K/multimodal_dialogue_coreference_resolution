@@ -28,14 +28,14 @@ processor = AutoProcessor.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(
     model_name,
     low_cpu_mem_usage=True,
-    torch_dtype='auto'
+    torch_dtype='auto',
 #    device_map="auto"
 )
 
 # 토크나이저 설정
 processor.add_special_tokens({'pad_token': '[PAD]'})
 model.resize_token_embeddings(len(processor))
-
+model.cuda()
 
 
 
@@ -119,6 +119,11 @@ model.eval()
 samples = list(range(len(test_texts))) 
 print("\n=== Generation Examples ===")
 correct_count = 0
+correct_count_photo_level = 0
+
+correct_count_exact = 0
+correct_count_photo_level_exact = 0
+
 for idx in tqdm.tqdm(samples):
     # 입력 텍스트 준비
     input_text, gt = test_texts[idx].split(response_template)
@@ -148,10 +153,29 @@ for idx in tqdm.tqdm(samples):
     print(f"\n---- Ground Truth:\n{gt}")
     print(f"\n---- Generated:\n{generated_text[len(input_text):]}")
     print(generated_text[len(input_text):][:2].strip(), gt[:2].strip())
-    if generated_text[len(input_text):][:2].strip() == gt[:2].strip():
-        
+    GT = gt[:2].strip()
+    ANSWER = generated_text[len(input_text):][:2].strip()
+    if GT == ANSWER:
         correct_count += 1
     
+    if GT == "A" or GT == "B" and ANSWER == "A" or ANSWER == "B":
+        correct_count_photo_level += 1
+    elif GT == "C" or GT == "D" and ANSWER == "C" or ANSWER == "D":
+        correct_count_photo_level += 1
     print("\n" + "="*50)
 
+
+    GT_EXACT = gt.strip()
+    ANSWER_EXACT = generated_text[len(input_text):].strip()
+
+    if GT_EXACT == ANSWER_EXACT:
+        correct_count_exact += 1
+    
+
+    print("\n" + "="*50)
+
+
+
 print(f"\n\nCorrect count: {correct_count}/{len(test_texts)}")
+print(f"\n\nCorrect count (photo level): {correct_count_photo_level}/{len(test_texts)}")
+print(f"\n\nCorrect count (exact): {correct_count_exact}/{len(test_texts)}")
