@@ -22,7 +22,7 @@ DATA_PATH = "./data/ai_responses.json"
 
 model_name = sys.argv[1] #f"meta-llama/Llama-3.1-{NUM_PARAM}"  # 또는 다른 Llama-2 모델
 # tokenizer = AutoProcessor.from_pretrained(model_name)
-processor = AutoProcessor.from_pretrained(model_name)
+processor = AutoProcessor.from_pretrained("meta-llama/Llama-3.1-8B-Instruct") # Fix processor, because it is not saved for newly trained models.
 
 model = AutoModelForCausalLM.from_pretrained(
     model_name,
@@ -39,6 +39,7 @@ model.cuda()
 
 
 processor.padding_side = "right"
+APPLY_CHAT_TEMPLATE = True
 
 # 커스텀 데이터셋 클래스 정의
 class TextDataset(Dataset):
@@ -79,10 +80,17 @@ def load_data(data_path):
             solution = js['solution']
             choices = ".\n".join(js['choices']) +"."
 
-            text_all = "## Conversation\n"+conversations[0] +"\n"+ photo_a_description +"\n"+ conversations[1] +"\n"+ photo_b_description +"\n"+ "\n".join(conversations[2:])
-            text_all += f"\n## Problem\n{problem}\n## Choices\n{choices}\n## Solution\n{solution}."
-            
+            if APPLY_CHAT_TEMPLATE == False:
+                text_all = "## Conversation\n"+conversations[0] +"\n"+ photo_a_description +"\n"+ conversations[1] +"\n"+ photo_b_description +"\n"+ "\n".join(conversations[2:])
+                text_all += f"\n## Problem\n{problem}\n## Choices\n{choices}\n## Solution\n{solution}."
+            else:
+                conversation = f"## Conversation\n"+conversations[0] +"\n"+ photo_a_description +"\n"+ conversations[1] +"\n"+ photo_b_description +"\n"+ "\n".join(conversations[2:])
+                problem_wo_solution = f"\n## Problem\n{problem}\n## Choices\n{choices}\n"
+                solution = f"## Solution\n{solution}."
+                text_all = processor.apply_chat_template([{"role": "user", "content": conversation + problem_wo_solution},
+                                                          {"role": "assistant", "content": solution}], tokenize=False)
             data_list.append(text_all)
+            
 
     return data_list
 
@@ -129,7 +137,7 @@ for idx in tqdm.tqdm(samples):
     input_text += response_template
 
     # 토큰화 및 생성
-    inputs = processor(input_text, return_tensors="pt", truncation=True)
+    inputs = processor(input_text, return_tensors="pt", truncation=True, add_special_tokens=False)
     inputs = {k: v.to(model.device) for k, v in inputs.items()}
     print(model.device)
     with torch.no_grad():
@@ -146,8 +154,8 @@ for idx in tqdm.tqdm(samples):
             repetition_penalty=1.5,
         )
     
-    generated_text = processor.decode(outputs[0], skip_special_tokens=True)
-    
+    generated_text = processor.decode(outputs[0], skip_special_tokens=False)
+    print("generated_text", generated_text)
     print(f"\n---- Input:\n{input_text}")
     print(f"\n---- Ground Truth:\n{gt}")
     print(f"\n---- Generated:\n{generated_text[len(input_text):]}")

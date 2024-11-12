@@ -5,7 +5,11 @@ do
     for s in 0 152 326 478 630
     do
         
-        MODEL_PATH="./llama3.2-${MODEL_PARAMS}-sft-finetuned/checkpoint-$s"
+        if [ "$MODEL_PARAMS" != "8B" ]; then
+            MODEL_PATH="./llama3.2-${MODEL_PARAMS}-sft-finetuned/checkpoint-$s"
+        else
+            MODEL_PATH="./llama3.1-${MODEL_PARAMS}-sft-finetuned/checkpoint-$s"
+        fi
         
         if [ "$s" = "0" ]; then
             if [ "$MODEL_PARAMS" != "8B" ]; then
@@ -16,7 +20,7 @@ do
         fi
 
         echo ${CVDS}, ${MODEL_PATH}
-        # CUDA_VISIBLE_DEVICES="$CVDS" python -u llama_eval.py $MODEL_PATH | tee logs/"eval_step_${s}_${MODEL_PARAMS}.txt" &
+        CUDA_VISIBLE_DEVICES="$CVDS" python -u llama_eval.py $MODEL_PATH | tee logs/"eval_step_${s}_${MODEL_PARAMS}.txt" &
         CVDS=$((CVDS+1))
     done
     # wait
