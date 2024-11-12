@@ -1,0 +1,1 @@
+accelerate launch llama3.2_sft_training.py 1B

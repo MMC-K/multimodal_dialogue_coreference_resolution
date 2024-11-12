@@ -1,3 +1,4 @@
+import sys
 import json
 import random
 from transformers import (
@@ -21,7 +22,9 @@ import torch
 from aim.hugging_face import AimCallback
 from transformers import TrainerCallback
 
-NUM_PARAM = "3B"
+NUM_PARAM = sys.argv[1]
+assert NUM_PARAM in ["1B", "3B"]
+
 DATA_PATH = "./data/ai_responses.json"
 
 # 모델과 토크나이저 초기화

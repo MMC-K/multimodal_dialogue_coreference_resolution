@@ -1,0 +1,1 @@
+accelerate launch --config_file 8b.yaml  llama3.1_8b_sft_training.py

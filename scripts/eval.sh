@@ -1,5 +1,5 @@
 # 1B
-for MODEL_PARAMS in "8B" # "1B" "3B" "8B"
+for MODEL_PARAMS in "1B" "3B" #"8B"
 do
     CVDS=0
     for s in 0 152 326 478 630
@@ -23,7 +23,5 @@ do
         CUDA_VISIBLE_DEVICES="$CVDS" python -u llama_eval.py $MODEL_PATH | tee logs/"eval_step_${s}_${MODEL_PARAMS}.txt" &
         CVDS=$((CVDS+1))
     done
-    # wait
+    wait
 done
-
-wait
