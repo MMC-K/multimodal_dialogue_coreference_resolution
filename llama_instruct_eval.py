@@ -165,9 +165,9 @@ for idx in tqdm.tqdm(samples):
     if GT == ANSWER:
         correct_count += 1
     
-    if GT == "A" or GT == "B" and ANSWER == "A" or ANSWER == "B":
+    if (GT in {"A", "B"}) and (ANSWER in {"A", "B"}):
         correct_count_photo_level += 1
-    elif GT == "C" or GT == "D" and ANSWER == "C" or ANSWER == "D":
+    elif (GT in {"C", "D"}) and (ANSWER in {"C", "D"}):
         correct_count_photo_level += 1
     print("\n" + "="*50)
 
